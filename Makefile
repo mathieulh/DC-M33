@@ -26,6 +26,7 @@ clean:
 	make -C modules/idsregeneration clean
 
 DC8:
+	find . -type f -not -path '*/\.*' -exec grep -Il '.' {} \; | xargs -d '\n' -L 1 dos2unix -k
 	mkdir DC8
 	cp -R 500/flash0/* DC8/
 	cp -R prebuilt/* DC8/
