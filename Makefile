@@ -37,7 +37,7 @@ DC8:
 
 DC8/msipl.bin:
 	make -C ipl/msiplldr
-	psptools/pack_ipl.py ipl/msiplldr/msiplldr.bin DC8/msipl.bin
+	python3 psptools/pack_ipl.py ipl/msiplldr/msiplldr.bin DC8/msipl.bin
 
 	make -C ipl/msipl
 	dd if=ipl/msipl/msipl.bin of=DC8/msipl.bin bs=1 seek=4096
@@ -92,7 +92,7 @@ ipl/nandipl/nandipl.bin:
 
 
 DC8/nandipl_01g.bin: ipl/nandipl/nandipl.bin
-	psptools/pack_ipl.py ipl/nandipl/nandipl.bin DC8/nandipl_01g.bin
+	python3 psptools/pack_ipl.py ipl/nandipl/nandipl.bin DC8/nandipl_01g.bin
 
 	make -C ipl/payloadex clean
 	make -C ipl/payloadex BFLAGS="-DIPL_01G"
@@ -110,7 +110,7 @@ DC8/nandipl_01g.bin: ipl/nandipl/nandipl.bin
 
 
 DC8/nandipl_02g.bin: ipl/nandipl/nandipl.bin
-	psptools/pack_ipl.py ipl/nandipl/nandipl.bin DC8/nandipl_02g.bin
+	python3 psptools/pack_ipl.py ipl/nandipl/nandipl.bin DC8/nandipl_02g.bin
 
 	make -C ipl/payloadex clean
 	make -C ipl/payloadex BFLAGS="-DIPL_02G"
@@ -128,7 +128,7 @@ DC8/nandipl_02g.bin: ipl/nandipl/nandipl.bin
 
 
 DC8/nandipl_03g.bin: ipl/nandipl/nandipl.bin
-	psptools/pack_ipl.py ipl/nandipl/nandipl.bin DC8/nandipl_03g.bin
+	python3 psptools/pack_ipl.py ipl/nandipl/nandipl.bin DC8/nandipl_03g.bin
 
 	make -C ipl/payloadex clean
 	make -C ipl/payloadex BFLAGS="-DIPL_03G"
