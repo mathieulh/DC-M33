@@ -436,12 +436,10 @@ int LoadUpdaterModules(int ofw)
 			return 2;
 	}
 
-#if 1
 	if (!ofw && kuKernelGetModel() == 0)
 		dcPatchModule("sceNAND_Updater_Driver", 1, 0x0D7E, 0xAC60);
 	else
 		dcPatchModule("sceNAND_Updater_Driver", 1, 0x0D7E, 0xAC64);
-#endif
 
 	mod = sceKernelLoadModule("flash0:/kd/lfatfs_updater.prx", 0, NULL);
 	if (mod < 0 && mod != SCE_KERNEL_ERROR_EXCLUSIVE_LOAD)

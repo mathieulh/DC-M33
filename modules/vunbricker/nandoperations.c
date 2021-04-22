@@ -22,13 +22,13 @@
 #include "nandoperations.h"
 #include "flash_format.h"
 #include "idstools.h"
+#include "install.h"
 
 extern u8 *big_buffer;
 extern u8 *sm_buffer1, *sm_buffer2;
 extern int status, progress_text, progress_bar;
 extern int last_percentage;
 
-int cancel_dump;
 char dump_error_msg[256];
 char restore_error_msg[256];
 char end_msg[384];
@@ -465,6 +465,202 @@ int RestoreNand()
 	return VLF_EV_RET_REMOVE_OBJECTS | VLF_EV_RET_REMOVE_HANDLERS;
 }
 
+int countFiles(const char *path)
+{
+	SceUID fd = sceIoDopen(path);
+	if (fd < 0)
+	{
+		DumpError("Error 0x%08X opening: %s", fd, path);
+	}
+	
+	int count = 0;
+	
+	SceIoDirent dir;
+	while(sceIoDread(fd, &dir) > 0)
+	{
+		if (dir.d_stat.st_attr == FIO_SO_IFDIR)
+		{
+			if ((strlen(dir.d_name) == 1 && dir.d_name[0] == '.') ||
+			(strlen(dir.d_name) == 2 && dir.d_name[0] == '.' && dir.d_name[1] == '.'))
+				continue;
+			
+			
+			char new_path[260];
+			sprintf(new_path, "%s%s/", path, dir.d_name);
+			count += countFiles(new_path);
+		}
+		else
+		{
+			++count;
+		}
+	}
+	
+	sceIoDclose(fd);
+	
+	return count;
+}
+
+int copyFiles(int file_count, int start_count, const char *src, const char *dest)
+{
+	SceUID fd = sceIoDopen(src);
+	if (fd < 0)
+	{
+		DumpError("Error 0x%08X opening: %s", fd, src);
+	}
+	
+	int res = sceIoMkdir(dest, 0777);
+	if (res < 0 && res != 0x80010011)
+	{
+		DumpError("Can't create %s: 0x%08X", dest, res);
+	}
+	
+	int count = 0;
+	SceIoDirent dir;
+	while(sceIoDread(fd, &dir) > 0)
+	{
+		if (dir.d_stat.st_attr == FIO_SO_IFDIR)
+		{
+			if ((strlen(dir.d_name) == 1 && dir.d_name[0] == '.') ||
+			(strlen(dir.d_name) == 2 && dir.d_name[0] == '.' && dir.d_name[1] == '.'))
+				continue;
+			
+			
+			char new_src[260];
+			sprintf(new_src, "%s%s/", src, dir.d_name);
+			
+			char new_dest[260];
+			sprintf(new_dest, "%s/%s", dest, dir.d_name);
+			
+			count += copyFiles(file_count, count, new_src, new_dest);
+		}
+		else
+		{
+			++count;
+			
+			char new_src[260];
+			sprintf(new_src, "%s%s", src, dir.d_name);
+			
+			char new_dest[260];
+			sprintf(new_dest, "%s/%s", dest, dir.d_name);
+
+			SceUID fdi = sceIoOpen(new_src, PSP_O_RDONLY, 0);
+			if (fdi < 0)
+			{
+				DumpError("Error opening %s: 0x%08X", new_src, fdi);
+			}
+			
+			SceUID fdo = sceIoOpen(new_dest, PSP_O_WRONLY | PSP_O_CREAT | PSP_O_TRUNC, 0777);
+			if (fdo < 0)
+			{
+				DumpError("Error opening %s: 0x%08X", new_dest, fdo);
+			}
+			
+			char signechecked = 0;
+			while (1)
+			{
+				int read = sceIoRead(fdi, big_buffer, BIG_BUFFER_SIZE);
+				if (read < 0)
+				{
+					DumpError("Error reading %s", new_src);
+				}
+				if (!read)
+					break;
+			
+				if (!signechecked &&
+					memcmp(&new_src[strlen(new_src) - 4], ".prx", 4) == 0 &&
+					memcmp(new_src, "kd/pspbtcnf", 12) != 0)
+				{
+					pspUnsignCheck(big_buffer);
+					signechecked = 1;
+				}
+
+				if (sceIoWrite(fdo, big_buffer, read) < 0)
+				{
+					DumpError("Error writing %s", new_dest);
+				}
+			}
+			
+			sceIoClose(fdi);
+			sceIoClose(fdo);
+
+			SetGenericProgress(start_count + count, file_count, 0);
+			scePowerTick(0);
+		}
+	}
+	
+	sceIoDclose(fd);
+	
+	return count;
+}
+
+int backup_thread(SceSize args, void *argp)
+{
+	dcSetCancelMode(1);
+	
+	switch(LoadUpdaterModules(1))
+	{
+		case 0: break;
+		case 1: DumpError("Failed to load emc_sm_updater.prx"); break;
+		case 2: DumpError("Failed to start emc_sm_updater.prx"); break;
+		case 3: DumpError("Failed to load lfatfs_updater.prx"); break;
+		case 4: DumpError("Failed to start lfatfs_updater.prx"); break;
+		case 5: DumpError("Failed to load lflash_fatfmt_updater.prx"); break;
+		case 6: DumpError("Failed to start lflash_fatfmt_updater.prx"); break;
+		case 7: DumpError("Failed to load ipl_update.prx"); break;
+		case 8: DumpError("Failed to start ipl_update.prx"); break;
+		case 9: DumpError("Failed to load pspdecrypt.prx"); break;
+		case 10: DumpError("Failed to start pspdecrypt.prx"); break;
+		default: DumpError("Error loading updater modules.");
+	}
+
+	sceIoUnassign("flach0:");
+
+	sceKernelDelayThread(1200000);
+
+	SetStatus("Assigning flash0...");
+
+	int res = sceIoAssign("flach0:", "lflach0:0,0", "flachfat0:", IOASSIGN_RDWR, NULL, 0);
+	if (res < 0)
+	{
+		DumpError("Flash0 assign failed: 0x%08X", res);  
+	}
+
+	sceKernelDelayThread(1200000);
+	
+	SetStatus("Backing up flash0...");
+	
+	int file_count = countFiles("flach0:/");
+	
+	copyFiles(file_count, 0, "flach0:/", "ms0:/flash0");
+
+	strcpy(end_msg, "Backup completed\n");
+	new_x = 150;
+	new_y = 110;
+
+	vlfGuiAddEventHandler(0, 700000, OnDumpComplete, NULL);
+	
+	return sceKernelExitDeleteThread(0);
+}
+
+void BackupNand()
+{
+	ClearProgress();
+	status = vlfGuiAddText(80, 100, "Start update modules...");
+
+	progress_bar = vlfGuiAddProgressBar(136);	
+	progress_text = vlfGuiAddText(240, 148, "0%");
+	vlfGuiSetTextAlignment(progress_text, VLF_ALIGNMENT_CENTER);
+
+	vlfGuiCancelBottomDialog();
+	vlfGuiBottomDialog(VLF_DI_CANCEL, -1, 1, 0, VLF_DEFAULT, OnCancelDump);
+
+	SceUID backup_thid = sceKernelCreateThread("backup_thread", backup_thread, 0x18, 0x10000, 0, NULL);
+	if (backup_thid >= 0)
+	{
+		sceKernelStartThread(backup_thid, 0, NULL);
+	}	
+}
+
 int OnNandOperationsSelect(int sel)
 {
 	switch (sel)
@@ -486,6 +682,10 @@ int OnNandOperationsSelect(int sel)
 			vlfGuiCancelCentralMenu();
 			IdStorageMenu(0);
 			return VLF_EV_RET_NOTHING;
+		break;
+		
+		case 4:
+			BackupNand();
 		break;
 	}	
 	
@@ -512,9 +712,10 @@ void NandOperationsMenu(int sel)
 		"Restore NAND",
 		"Format Lflash",
 		"IDStorage tools",
+		"Backup firmware",
 	};
 
-	vlfGuiCentralMenu(4, items, sel, OnNandOperationsSelect, 0, -8);
+	vlfGuiCentralMenu(5, items, sel, OnNandOperationsSelect, 0, -8);
 	vlfGuiBottomDialog(VLF_DI_BACK, VLF_DI_ENTER, 1, 0, VLF_DEFAULT, OnBackToMainMenuFromNO);
 }
 
