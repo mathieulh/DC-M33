@@ -1,6 +1,6 @@
 PSPDEV=$(shell psp-config --pspdev-path)
 
-all: DOS2UNIX DC8 DC8/msipl.bin DC8/ipl_01g.bin DC8/ipl_02g.bin DC8/ipl_03g.bin DC8/nandipl_01g.bin DC8/nandipl_02g.bin DC8/nandipl_03g.bin DC8/kd/pspbtdnf.bin DC8/kd/pspbtjnf.bin DC8/kd/pspbtknf.bin DC8/kd/pspbtlnf.bin DC8/kd/pspbtrnf.bin DC8/kd/pspbtdnf_02g.bin DC8/kd/pspbtjnf_02g.bin DC8/kd/pspbtknf_02g.bin DC8/kd/pspbtlnf_02g.bin DC8/kd/pspbtrnf_02g.bin DC8/kd/pspbtdnf_03g.bin DC8/kd/pspbtjnf_03g.bin DC8/kd/pspbtknf_03g.bin DC8/kd/pspbtlnf_03g.bin DC8/kd/pspbtrnf_03g.bin DC8/tmctrl500.prx DC8/kd/ipl_update.prx DC8/kd/resurrection.prx DC8/kd/dcman.prx DC8/kd/iop.prx DC8/kd/lflash_fdisk.prx DC8/kd/idsregeneration.prx DC8/kd/emc_sm_updater.prx DC8/kd/lfatfs_updater.prx DC8/kd/lflash_fatfmt_updater.prx DC8/vsh/module/intraFont.prx DC8/vsh/module/vlf.prx DC8/kd/pspdecrypt.prx DC8/kd/galaxy.prx DC8/kd/idcanager.prx DC8/kd/march33.prx DC8/kd/popcorn.prx DC8/kd/systemctrl.prx DC8/kd/systemctrl_02g.prx DC8/kd/systemctrl_03g.prx DC8/kd/usbdevice.prx DC8/kd/vshctrl.prx DC8/vsh/module/recovery.prx DC8/vsh/module/satelite.prx
+all: DC8 DC8/msipl.bin DC8/ipl_01g.bin DC8/ipl_02g.bin DC8/ipl_03g.bin DC8/nandipl_01g.bin DC8/nandipl_02g.bin DC8/nandipl_03g.bin DC8/kd/pspbtdnf.bin DC8/kd/pspbtjnf.bin DC8/kd/pspbtknf.bin DC8/kd/pspbtlnf.bin DC8/kd/pspbtrnf.bin DC8/kd/pspbtdnf_02g.bin DC8/kd/pspbtjnf_02g.bin DC8/kd/pspbtknf_02g.bin DC8/kd/pspbtlnf_02g.bin DC8/kd/pspbtrnf_02g.bin DC8/kd/pspbtdnf_03g.bin DC8/kd/pspbtjnf_03g.bin DC8/kd/pspbtknf_03g.bin DC8/kd/pspbtlnf_03g.bin DC8/kd/pspbtrnf_03g.bin DC8/tmctrl500.prx DC8/kd/ipl_update.prx DC8/kd/resurrection.prx DC8/kd/dcman.prx DC8/kd/iop.prx DC8/kd/lflash_fdisk.prx DC8/kd/idsregeneration.prx DC8/kd/emc_sm_updater.prx DC8/kd/lfatfs_updater.prx DC8/kd/lflash_fatfmt_updater.prx DC8/vsh/module/intraFont.prx DC8/vsh/module/vlf.prx DC8/kd/pspdecrypt.prx DC8/kd/galaxy.prx DC8/kd/idcanager.prx DC8/kd/march33.prx DC8/kd/popcorn.prx DC8/kd/systemctrl.prx DC8/kd/systemctrl_02g.prx DC8/kd/systemctrl_03g.prx DC8/kd/usbdevice.prx DC8/kd/vshctrl.prx DC8/vsh/module/recovery.prx DC8/vsh/module/satelite.prx
 
 clean:
 	rm -rf DC8
@@ -25,10 +25,8 @@ clean:
 	make -C modules/lflash_fdisk clean
 	make -C modules/idsregeneration clean
 
-DOS2UNIX:
-	find . -type f -not -path '*/\.*' -exec grep -Il '.' {} \; | xargs -d '\n' -L 1 dos2unix -k
-
 DC8:
+	find . -type f -not -path '*/\.*' -exec grep -Il '.' {} \; | xargs -d '\n' -L 1 dos2unix -k
 	mkdir DC8
 	cp -R 500/flash0/* DC8/
 	cp -R prebuilt/* DC8/
