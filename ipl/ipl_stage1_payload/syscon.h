@@ -90,7 +90,7 @@ command code : write size (within cmd and ws) : read size  (without sts,len):
 */
 
 static inline int pspSysconNop(void){ return pspSyscon_tx_noparam(0x00); }								// 00 : 2 : 3
-static inline int pspSyscon_driver_Unkonow_7ec5a957(u32 *ptr){ return pspSyscon_rx_dword(ptr,0x01); }	// 01 : 2 : 7
+static inline int pspSysconGetBaryonVersion(u32 *ptr){ return pspSyscon_rx_dword(ptr,0x01); }	// 01 : 2 : 7
 static inline int pspSyscon_driver_Unkonow_34c36ff9(u32 *ptr){ return pspSyscon_rx_dword(ptr,0x02); }	// 02 : 2 : 5
 static inline int pspSyscon_driver_Unkonow_3b657a27(u32 *ptr){ return pspSyscon_rx_dword(ptr,0x05); }	// 05 : 2 : 7
 //06 :  ? :  ? : (ctrl read?)
@@ -172,5 +172,7 @@ static inline int pspSyscon_driver_Unkonow_4c0ee2fa(u32 *ptr){ return pspSyscon_
 // 74 :  3 :  6?: pspSyscon_driver_Unkonow_68ef0bef
 // 7f :  3 :  4 : pspSysconBatteryAuth
 
+int seed_gen1(u8 *random_key, u8 *random_key_dec_resp_dec);
+int seed_gen2(u8 *random_key, u8 *random_key_dec_resp_dec);
 
 

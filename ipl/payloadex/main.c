@@ -141,15 +141,15 @@ int sceBootLfatOpenPatched(char *file)
 	memcpy(g_file, file, 64);
 	
 	if (memcmp(g_file+4, "pspbtcnf", 8) == 0)
-	{
+	{		
 		if (recovery)
-			g_file[9] = 'r';
+			memcpy(&g_file[strlen(g_file) - 4], "_recovery.bin", 17);
 #ifdef MSIPL
 		else if (!msboot)
-			g_file[9] = 'd';
-		else
+			memcpy(&g_file[strlen(g_file) - 4], "_dc.bin", 8);
 #endif
-			g_file[9] = 'j';
+		else
+			memcpy(&g_file[strlen(g_file) - 4], "_umd.bin", 9);
 	}
 
 #ifdef MSIPL
@@ -189,46 +189,6 @@ void ClearCaches()
 	IcacheClear();
 }
 
-#ifndef MSIPL
-int (* UnsignCheck)(void *buf, int size);
-int UnsignCheckPatched(u8 *buf, int size)
-{
-	int unsigncheck = 0, i;
-
-	for (i = 0; i < 0x58; i++)
-	{
-		if (buf[i+0xD4] != 0)
-		{
-			unsigncheck = 1;
-			break;
-		}
-	}
-
-	if (unsigncheck)
-		return UnsignCheck(buf, size);
-
-	return 0;
-}
-
-int (* KDecrypt)(u32 *buf, int size, int *retSize);
-int KDecryptPatched(u32 *buf, int size, int *retSize)
-{
-#ifdef IPL_01G
-	if (buf[0x130/4] == 0xA030DB35)
-#else
-	if (buf[0x130/4] == 0xB301AEBA)
-#endif
-	{
-		*retSize = buf[0xB0/4];				
-		memcpy((char *)buf, ((char *)buf)+0x150, *retSize);			
-			
-		return 0;
-	}
-
-	return KDecrypt(buf, size, retSize);
-}
-#endif
-
 int PatchLoadCore(void *a0, void *a1, void *a2, int (* module_start)(void *, void *, void *))
 {
 #ifdef DEBUG
@@ -237,20 +197,11 @@ int PatchLoadCore(void *a0, void *a1, void *a2, int (* module_start)(void *, voi
 
 	u32 text_addr = ((u32)module_start) - 0xC74;
 
-	// disable unsign check
 #ifdef MSIPL
+	// disable unsign check
 	_sw(0x1021, text_addr + 0x691C);
 	_sw(0x1021, text_addr + 0x694C);
 	_sw(0x1021, text_addr + 0x69E4);
-#else
-	MAKE_CALL(text_addr + 0x691C, UnsignCheckPatched);
-	MAKE_CALL(text_addr + 0x694C, UnsignCheckPatched);
-	MAKE_CALL(text_addr + 0x69E4, UnsignCheckPatched);
-	UnsignCheck = (void *)(text_addr + 0x81B4);
-	
-	MAKE_CALL(text_addr + 0x41D0, KDecryptPatched);
-	MAKE_CALL(text_addr + 0x68F8, KDecryptPatched);
-	KDecrypt = (void *)(text_addr + 0x81D4);
 #endif
 
 	ClearCaches();
@@ -289,7 +240,7 @@ int entry(void *a0, void *a1, void *a2, void *a3, void *t0, void *t1, void *t2)
 			recovery = 1;
 		}
 #ifdef MSIPL
-		else if((ctrl & SYSCON_CTRL_LTRG) == 0)
+		else if((ctrl & SYSCON_CTRL_LTRG) == 0 && (ctrl & SYSCON_CTRL_HOME) == SYSCON_CTRL_HOME)
 		{
 			msboot = 1;
 		}
@@ -347,10 +298,6 @@ int entry(void *a0, void *a1, void *a2, void *a3, void *t0, void *t1, void *t2)
 #ifdef MSIPL
 		_sw(0x03e00008, NAND_ENCRYPTION);
 		_sw(0x1021, NAND_ENCRYPTION + 4);
-#else
-#ifdef IPL_01G
-		_sw(0xAC60, 0x8860E2D6);
-#endif
 #endif
 
 		// Clear Systemctrl vars
@@ -360,6 +307,7 @@ int entry(void *a0, void *a1, void *a2, void *a3, void *t0, void *t1, void *t2)
 #ifndef MSIPL
 	}
 #endif
+
 	return Ipl_Payload(a0, a1, a2, a3, t0, t1, t2);	
 }
 

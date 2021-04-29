@@ -436,10 +436,12 @@ int LoadUpdaterModules(int ofw)
 			return 2;
 	}
 
+
 	if (!ofw && kuKernelGetModel() == 0)
 		dcPatchModule("sceNAND_Updater_Driver", 1, 0x0D7E, 0xAC60);
 	else
 		dcPatchModule("sceNAND_Updater_Driver", 1, 0x0D7E, 0xAC64);
+
 
 	mod = sceKernelLoadModule("flash0:/kd/lfatfs_updater.prx", 0, NULL);
 	if (mod < 0 && mod != SCE_KERNEL_ERROR_EXCLUSIVE_LOAD)
@@ -685,8 +687,8 @@ void CopyFileList(int ofw, const char **list, int file_count, int start_file_cou
 				break;
 		
 			if (!signechecked &&
-				memcmp(&list[i][strlen(list[i]) - 4], ".prx", 4) == 0 &&
-				memcmp(list[i], "kd/pspbtcnf", 12) != 0)
+				(memcmp(&list[i][strlen(list[i]) - 4], ".prx", 4) == 0 ||
+				memcmp(list[i], "kd/pspbtcnf", 11) == 0))
 			{
 				pspSignCheck(big_buffer);
 				signechecked = 1;
@@ -850,26 +852,9 @@ int install_thread(SceSize args, void *argp)
 	if (CreateFlash1Dirs() < 0)
 		InstallError(ofw, "Error creating flash1 directories.");
 
-	size = ReadFile("flash1:/registry/system.dreg", 0, sm_buffer1, SMALL_BUFFER_SIZE);
-	if (size <= 0)
+	if (WriteFile("flach1:/registry/init.dat", sm_buffer1, 0) < 0)
 	{
-		InstallError(ofw, "Cannot read system.dreg");
-	}
-
-	if (WriteFile("flach1:/registry/system.dreg", sm_buffer1, size) < size)
-	{
-		InstallError(ofw, "Cannot write system.dreg\n");
-	}
-
-	size = ReadFile("flash1:/registry/system.ireg", 0, sm_buffer1, SMALL_BUFFER_SIZE);
-	if (size <= 0)
-	{
-		InstallError(ofw, "Cannot read system.ireg\n");
-	}
-
-	if (WriteFile("flach1:/registry/system.ireg", sm_buffer1, size) < size)
-	{
-		InstallError(ofw, "Cannot write system.ireg\n");		
+		InstallError(ofw, "Cannot write init.dat\n");
 	}
 
 	res = ReadFile("flash2:/registry/act.dat", 0, sm_buffer1, SMALL_BUFFER_SIZE);
@@ -907,7 +892,7 @@ int install_thread(SceSize args, void *argp)
 		InstallError(ofw, "Error in pspIplUpdateSetIpl");
 
 	sceKernelDelayThread(900000);
-	
+
 	if (!ofw)
 	{
 		int file_count = sizeof(common_m33) / sizeof(common_m33[0]);
